@@ -1,5 +1,10 @@
 import os
 import requests
+import csv
+from datetime import datetime
+
+now = datetime.now()
+timestamp_str = now.strftime("_%m_%d_%H_%M")
 
 API_KEY = os.environ.get("CFBD_API_KEY", "").strip()
 if not API_KEY:
@@ -25,11 +30,16 @@ def main():
     fbs = [r for r in records if r.get("classification") == "fbs"]
 
     print(f"Found {len(fbs)} FBS team records for {year}\n")
-    for r in sorted(fbs, key=lambda x: x["team"]):
-        team = r["team"]
-        w, l, t = r["total"]["wins"], r["total"]["losses"], r["total"].get("ties", 0)
-        cw, cl = r["conferenceGames"]["wins"], r["conferenceGames"]["losses"]
-        print(f"{team}: {w}-{l}-{t}  (Conf: {cw}-{cl})")
+    file_name = f"record{timestamp_str}.csv"
+    with open(file_name, "w", newline="")as file:
+        writer = csv.writer(file)
+        writer.writerow(["team","wins","losses","ties","conferenceWins","conferenceLosses"])
+        for r in sorted(fbs, key=lambda x: x["team"]):
+            team = r["team"]
+            w, l, t = r["total"]["wins"], r["total"]["losses"], r["total"].get("ties", 0)
+            cw, cl = r["conferenceGames"]["wins"], r["conferenceGames"]["losses"]
+            print(f"{team}: {w}-{l}-{t}  (Conf: {cw}-{cl})")
+            writer.writerow([team, w, l, t, cw, cl])
 
 if __name__ == "__main__":
     main()
