@@ -26,20 +26,6 @@ def fetch_all_records(year: int):
     resp.raise_for_status()
     return resp.json()
 
-def fetch_preseason_rankings(year: int):
-    url = "https://api.collegefootballdata.com/rankings"
-    params = {"year": year}
-    resp = requests.get(url, headers=HEADERS, params=params)
-    resp.raise_for_status()
-    data = resp.json()
-
-    for week in data: 
-        if week["week"] == 0:
-            for poll in week["polls"]:
-                if poll["poll"] == "AP Top 25":
-                    return {entry["school"]: entry["rank"] for entry in poll["ranks"]}
-    return {}
-
 def write_to_csv(teams, timestamp_str):
     file_name = f"record{timestamp_str}.csv"
     with open(file_name, "w", newline="") as file:
@@ -89,20 +75,6 @@ def update_database(session: Session, teams: list, preseason_rankings: dict):
             team.tier = tier
     session.commit()
 
-def get_tier(preseason_rank):
-    if preseason_rank is None:
-        return None
-    if preseason_rank <= 10:
-        return 1
-    elif preseason_rank <= 25:
-        return 2
-    elif preseason_rank <= 50:
-        return 3
-    elif preseason_rank <= 75:
-        return 4
-    else:
-        return 5
-
 
 def main():
     now = datetime.now()
@@ -111,7 +83,6 @@ def main():
     print(f"Fetching FBS records for {YEAR}...\n")
     all_records = fetch_all_records(YEAR)
     fbs_records = [r for r in all_records if r.get("classification") == "fbs"]
-    preseason_rankings = fetch_preseason_rankings(YEAR)
 
     print(f"Found {len(fbs_records)} FBS team records.\n")
 
@@ -127,7 +98,7 @@ def main():
 
     # Update database
     with SessionLocal() as session:
-        update_database(session, fbs_records, preseason_rankings)
+        update_database(session, fbs_records)
 
 if __name__ == "__main__":
     main()
