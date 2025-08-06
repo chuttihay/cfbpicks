@@ -34,7 +34,7 @@ st.sidebar.markdown('<div class="sidebar-title">📂 Navigation</div>', unsafe_a
 
 nav_options = {
     "Standings": "🏆 Standings",
-    "Game Stats": "🎯 Game Stats",
+    "Game Stats": "🎯  Game Stats",
     "Rules": "📜 Rules"
 }
 
@@ -68,21 +68,6 @@ def get_player_points(player_name):
             WHERE pl.name = ?
         """, (player_name,))
         return sum(row[0] * row[1] for row in cursor.fetchall())
-
-def get_teams_and_records_for(player_name):
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT t.name, t.wins, t.losses, t.ties, t.conf_wins, t.conf_losses
-            FROM player_picks p
-            JOIN players pl ON p.player_id = pl.id
-            JOIN teams t ON p.team_id = t.id
-            WHERE pl.name = ?
-        """, (player_name,))
-        return [
-            (name, f"{w}-{l}-{t} (Conf: {cw}-{cl})")
-            for name, w, l, t, cw, cl in cursor.fetchall()
-        ]
 
 def calculate_all_player_points():
     with get_db_connection() as conn:
@@ -118,44 +103,135 @@ def get_teams_and_records_for(player_name, include_points=False):
             ]
         else:
             cursor.execute("""
-                SELECT t.name, t.wins, t.losses, t.ties, t.tier
+                SELECT t.name, t.wins, t.losses, t.ties, t.tier, t.conf_wins, t.conf_losses
                 FROM player_picks p
                 JOIN players pl ON p.player_id = pl.id
                 JOIN teams t ON p.team_id = t.id
                 WHERE pl.name = ?
             """, (player_name,))
             return [
-                (name, f"{w}-{l}-{t}", tier)
-                for name, w, l, t, tier in cursor.fetchall()
+                (name, f"{w}-{l}-{t}", tier, conf_wins, conf_losses)
+                for name, w, l, t, tier, conf_wins, conf_losses in cursor.fetchall()
             ]
 
+def calculate_rat_king_scores():
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, name FROM players")
+        players = cursor.fetchall()
 
+        def tier5_details(player_id):
+            cursor.execute("""
+                SELECT t.name, t.wins, t.losses
+                FROM player_picks p
+                JOIN teams t ON p.team_id = t.id
+                WHERE p.player_id = ? AND t.tier = 1
+            """, (player_id,))
+            return cursor.fetchall()
+
+        scores = []
+        for player_id, name in players:
+            details = tier5_details(player_id)
+            if not details:
+                scores.append((name, 0.0, []))
+            else:
+                rates = []
+                for _, w, l in details:
+                    total = w + l
+                    win_rate = w / total if total else 0
+                    rates.append(win_rate)
+                avg = sum(rates) / len(rates)
+                scores.append((name, avg, details))
+        return scores
+
+def calculate_conference_champ_scores():
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, name FROM players")
+        players = cursor.fetchall()
+
+        results = []
+        for player_id, name in players:
+            cursor.execute("""
+                SELECT t.name, t.conf_wins, t.conf_losses
+                FROM player_picks p
+                JOIN teams t ON p.team_id = t.id
+                WHERE p.player_id = ?
+            """, (player_id,))
+            data = cursor.fetchall()
+            margin = sum(w - l for _, w, l in data)
+            results.append((name, margin, data))
+        return results
 
 # --- Pages ---
 
 if page == "Standings":
     st.header("🏆 Standings")
 
-    player_points = calculate_all_player_points()
-    player_points.sort(key=lambda x: x[1])  # always ascending
+    tab1, tab2, tab3 = st.tabs(["Main Game", "Rat King", "Conference Champ"])
 
-    all_player_names = [name for name, _ in player_points]
-    selected = st.selectbox("Select Player (or view all)", ["All"] + all_player_names)
+    with tab1:
+        player_points = calculate_all_player_points()
+        player_points.sort(key=lambda x: x[1])
 
-    for idx, (name, pts) in enumerate(player_points, start=1):
-        if selected != "All" and selected != name:
-            continue
+        all_player_names = [name for name, _ in player_points]
+        selected = st.selectbox("Select Player (or view all)", ["All"] + all_player_names)
 
-        with st.expander(f"#{idx} {name} - {pts} pts"):
-            teams = get_teams_and_records_for(name, include_points=True)
-            for team, record, tier, team_points in teams:
-                st.write(f"- {team} [Tier {tier}] ({record}) → {team_points} pts")
+        for idx, (name, pts) in enumerate(player_points, start=1):
+            if selected != "All" and selected != name:
+                continue
 
+            with st.expander(f"#{idx} {name} - {pts} pts"):
+                teams = get_teams_and_records_for(name, include_points=True)
+                for team, record, tier, team_points in teams:
+                    player_tier = (
+                        1 if tier == 6 else
+                        2 if tier == 4 else
+                        3 if tier == 3 else
+                        4 if tier == 2 else
+                        5 if tier == 1 else
+                        tier
+                    )
+                    st.markdown(f"{team} [Tier {player_tier}] ({record}) → {team_points} pts")
+
+    with tab2:
+        st.subheader("Rat King Standings (Avg Win Rate of Tier 5 Picks)")
+        scores = calculate_rat_king_scores()
+        scores.sort(key=lambda x: x[1], reverse=True)
+
+        all_names = [name for name, _, _ in scores]
+        selected = st.selectbox("Select Player (or view all)", ["All"] + all_names, key="rat_king")
+
+        for idx, (name, score, details) in enumerate(scores, start=1):
+            if selected != "All" and selected != name:
+                continue
+
+            with st.expander(f"#{idx} {name} — Avg Win Rate: {score:.3%}"):
+                for team_name, wins, losses in details:
+                    total = wins + losses
+                    rate = wins / total if total else 0
+                    st.write(f"{team_name}: {wins}-{losses} ({rate:.1%})")
+
+    with tab3:
+        st.subheader("Conference Champ Standings (Conf Wins - Conf Losses)")
+        scores = calculate_conference_champ_scores()
+        scores.sort(key=lambda x: x[1], reverse=True)
+
+        all_names = [name for name, _, _ in scores]
+        selected = st.selectbox("Select Player (or view all)", ["All"] + all_names, key="conf_champ")
+
+        for idx, (name, margin, data) in enumerate(scores, start=1):
+            if selected != "All" and selected != name:
+                continue
+
+            with st.expander(f"#{idx} {name} — Conf Margin: {margin}"):
+                for team_name, conf_wins, conf_losses in data:
+                    st.write(f"{team_name}: {conf_wins}-{conf_losses}")
 
 elif page == "Game Stats":
     st.header("🏈 Team Overview")
 
-    tab1, tab2 = st.tabs(["📊 Team Stats", "📈 Pick Popularity"])
+    tab1, tab2 = st.tabs([" 📊 Team Stats", "📈 Pick Popularity"])
 
     with tab1:
         with get_db_connection() as conn:
@@ -207,8 +283,6 @@ elif page == "Game Stats":
             st.altair_chart(chart, use_container_width=True)
         else:
             st.info("No picks yet!")
-
-
 
 elif page == "Rules":
     st.header("📜 Rules")

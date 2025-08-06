@@ -8,7 +8,7 @@ DB_PATH = "../cfbpickem.db"
 # Page setup
 st.set_page_config(page_title="Submit Your Picks", layout="centered")
 st.image(Image.open("white.png"), use_container_width=True)
-st.title("\U0001F3C8 College Football Pick'em Submission Form")
+st.title("🏈 College Football Pick'em Submission Form")
 st.header("Rules")
 st.subheader("Cycle Through Tabs to Check Side-Pot Games & Buy-In/Payouts")
 
@@ -52,7 +52,7 @@ with conf_tab:
 with payout_tab:
     st.header("Buy-In & Payouts")
     st.markdown("""
-    Buy-in is **$25**, venmoed to Tanner Hay as shown below.
+    **Buy-in is $25. Venmo Tanner with your DISPLAY NAME in the caption!!!**
     - Pot Split:
     """)
 
@@ -153,14 +153,19 @@ for player_tier in range(1, 6):
     label = player_tiers[player_tier]["label"]
     max_allowed = player_tiers[player_tier]["max"]
 
-    selected = st.multiselect(
+# Separate display labels and team ID mapping
+    label_to_id = {label: team_id for label, team_id in options}
+    labels = list(label_to_id.keys())
+
+    selected_labels = st.multiselect(
         f"{label} — Select {max_allowed} teams",
-        options=options,
+        options=labels,
         key=f"tier{player_tier}"
     )
 
-    selected_teams[player_tier] = selected
-    all_selected_ids.extend([team_id for _, team_id in selected])
+    selected_teams[player_tier] = selected_labels
+    all_selected_ids.extend([label_to_id[label] for label in selected_labels])
+
 
 if st.button("Submit Picks", key="submit_button"):
     if not name.strip() or not email.strip():
