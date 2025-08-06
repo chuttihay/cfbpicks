@@ -20,6 +20,7 @@ class Player(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String)
     email = Column(String, unique=True)
+    paid = Column(bool, default=False)
 
 
 class PlayerPick(Base):

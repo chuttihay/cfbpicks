@@ -1,2 +1,2 @@
-
+requests==LTS
 reflex==0.8.4
