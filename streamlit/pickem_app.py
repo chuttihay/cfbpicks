@@ -1,6 +1,8 @@
 import streamlit as st
 import sqlite3
 from PIL import Image
+import pandas as pd
+import altair as alt
 
 DB_PATH = "../cfbpickem.db"
 
@@ -231,7 +233,7 @@ if page == "Standings":
 elif page == "Game Stats":
     st.header("🏈 Team Overview")
 
-    tab1, tab2 = st.tabs([" 📊 Team Stats", "📈 Pick Popularity"])
+    tab1, tab2 = st.tabs(["📊 Team Stats", "📈 Pick Popularity"])
 
     with tab1:
         with get_db_connection() as conn:
@@ -252,7 +254,7 @@ elif page == "Game Stats":
                 "Record": [f"{r[1]}-{r[2]}-{r[3]}" for r in rows],
                 "Conf Record": [f"{r[4]}-{r[5]}" for r in rows],
                 "Preseason Rank": [r[6] for r in rows],
-                "Tier": [r[7] for r in rows],
+                "Cost": [r[7] for r in rows],
             },
             use_container_width=True
         )
@@ -261,20 +263,35 @@ elif page == "Game Stats":
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT t.name, COUNT(*) as pick_count
+                SELECT t.name, t.tier, COUNT(*) as pick_count
                 FROM player_picks p
                 JOIN teams t ON p.team_id = t.id
-                GROUP BY t.name
+                GROUP BY t.name, t.tier
                 ORDER BY pick_count DESC
             """)
             data = cursor.fetchall()
 
         st.subheader("Team Pick Popularity")
         if data:
-            import pandas as pd
-            import altair as alt
+            df = pd.DataFrame(data, columns=["Team", "Tier", "Picks"])
 
-            df = pd.DataFrame(data, columns=["Team", "Picks"])
+            # Convert database tier to player-facing tier
+            def convert_tier(db_tier):
+                return (
+                    1 if db_tier == 6 else
+                    2 if db_tier == 4 else
+                    3 if db_tier == 3 else
+                    4 if db_tier == 2 else
+                    5 if db_tier == 1 else
+                    db_tier
+                )
+
+            df["PlayerTier"] = df["Tier"].apply(convert_tier)
+            df = df.sort_values("PlayerTier")
+
+            selected_tier = st.selectbox("Filter by Tier", sorted(df["PlayerTier"].unique()))
+            df = df[df["PlayerTier"] == selected_tier]
+
             chart = alt.Chart(df).mark_bar().encode(
                 x=alt.X("Picks:Q", title="Number of Players"),
                 y=alt.Y("Team:N", sort='-x', title="Team"),
@@ -286,14 +303,55 @@ elif page == "Game Stats":
 
 elif page == "Rules":
     st.header("📜 Rules")
-    st.markdown("""
-    - Each player selects a group of teams before the season starts.  
-    - You earn points whenever one of your selected teams loses a game.  
-    - The number of points earned per loss is based on the team's tier:  
-      - Tier 1 = 6pts   - Preseason rank 1-10
-      - Tier 2 = 4pts   - Preseason rank 11-25
-      - Tier 3 = 3pts   - Preseason rank 26-50  
-      - Tier 4 = 2pts   - Preseason rank 51-75
-      - Tier 5 = 1pt    - Preseason rank 76+ 
-    - The player with the **least points** at the end of the season wins.
-    """)
+    st.subheader("Cycle Through Tabs to Check Side-Pot Games & Buy-In/Payouts")
+
+    main_tab, rat_tab, conf_tab, payout_tab = st.tabs(["Main Game", "Rat King", "Conference Champ", "Payouts"])
+
+    with main_tab:
+        st.markdown("""
+        - Each player selects a group of teams before the season starts.  
+        - You earn points whenever one of your selected teams loses a game.  
+        - The number of points earned per loss is based on the team's tier:  
+          - Tier 1 = 6pts   - Preseason rank 1-10  
+          - Tier 2 = 4pts   - Preseason rank 11-25  
+          - Tier 3 = 3pts   - Preseason rank 26-50  
+          - Tier 4 = 2pts   - Preseason rank 51-75  
+          - Tier 5 = 1pt    - Preseason rank 76+   
+        - The player with the **least points** at the end of the season wins.
+        """)
+
+    with rat_tab:
+        st.header("Rat King Rules")
+        st.markdown("""
+        - We all know watching Kennesaw State vs Lousiana Monroe isn't the best way to spend your Saturday.  
+        So we want to reward the **Rat King** for having the best average Tier 5 records.  
+        - It's about as simple as that, your picks with a preseason ranking of 76+ do matter and can still earn you some cash no matter how pitiful your top 4 tiers' teams play.  
+        - So pick carefully and good luck!
+        """)
+
+    with conf_tab:
+        st.header("Conference Champ Rules")
+        st.markdown("""
+        - This side-pot is for all of the ball knowers out there that dont want to get shafted for a stupid out-of-conference loss, week 0.  
+        - We'll simply take the sum of all of your picks conference wins - all of your picks conference losses.  
+        - The player with the largest margin of conference wins will take the **Conference Champ** title. 
+        """)
+
+    with payout_tab:
+        st.header("Buy-In & Payouts")
+        st.markdown("""
+        **Buy-in is $25. Venmo Tanner with your DISPLAY NAME in the caption!!!**  
+        - Pot Split:
+        """)
+
+        st.table({
+            "Game": ["Main Game", "Rat King", "Conference Champ"],
+            "Prize Split": ["70%", "10%", "20%"]
+        })
+
+        st.image("venmo.jpeg", use_container_width=True)
+        st.markdown("""
+        <div style="text-align: center;">
+            <a href="https://venmo.com/code?user_id=1944273914167296153" target="_blank">Venmo Payment Link</a>
+        </div>
+        """, unsafe_allow_html=True)
