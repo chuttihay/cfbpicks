@@ -335,18 +335,24 @@ elif page == "Rules":
 
     main_tab, rat_tab, conf_tab, payout_tab = st.tabs(["Main Game", "Rat King", "Conference Champ", "Payouts"])
 
+    if "show_form" not in st.session_state:
+        st.session_state.show_form = False
+
     with main_tab:
-        st.markdown("""
-        - Each player selects a group of teams before the season starts.  
+        if not st.session_state.show_form:
+            st.markdown("""
+        - Each player selects a group of teams before the season starts. **You only pick once for the whole season.**
+        - The games only last for the regular season.
+        - If you want to change your picks before the season starts, just resubmit using the same email. It will overwrite your previous picks.
         - You earn points whenever one of your selected teams loses a game.  
         - The number of points earned per loss is based on the team's tier:  
-          - Tier 1 = 6pts   - Preseason rank 1-10  
-          - Tier 2 = 4pts   - Preseason rank 11-25  
-          - Tier 3 = 3pts   - Preseason rank 26-50  
-          - Tier 4 = 2pts   - Preseason rank 51-75  
-          - Tier 5 = 1pt    - Preseason rank 76+   
+        - Tier 1 = 6pts   - Preseason rank 1-10
+        - Tier 2 = 4pts   - Preseason rank 11-25
+        - Tier 3 = 3pts   - Preseason rank 26-50  
+        - Tier 4 = 2pts   - Preseason rank 51-75
+        - Tier 5 = 1pt    - Preseason rank 76+ 
         - The player with the **least points** at the end of the season wins.
-        """)
+            """)
 
     with rat_tab:
         st.header("Rat King Rules")
@@ -360,15 +366,17 @@ elif page == "Rules":
     with conf_tab:
         st.header("Conference Champ Rules")
         st.markdown("""
-        - This side-pot is for all of the ball knowers out there that dont want to get shafted for a stupid out-of-conference loss, week 0.  
-        - We'll simply take the sum of all of your picks conference wins - all of your picks conference losses.  
+        - This side-pot is for all of the ball knowers out there that dont want to get shafted for a stupid out-of-conference loss, week 0.
+        - We'll simply take the sum of all of your picks conference wins - all of your picks conference losses.
         - The player with the largest margin of conference wins will take the **Conference Champ** title. 
         """)
 
     with payout_tab:
         st.header("Buy-In & Payouts")
         st.markdown("""
-        **Buy-in is $25. Venmo Tanner with your DISPLAY NAME in the caption!!!**  
+        **Buy-in is $35. Venmo Tanner with your DISPLAY NAME in the caption!!!**
+        - For the tiebreaker, we will just go to total wins. If two players have the **same exact selections**, they will split the pot.
+        - Failure to submit payment before the season starts will result in removal from the pickem.
         - Pot Split:
         """)
 
@@ -377,7 +385,7 @@ elif page == "Rules":
             "Prize Split": ["70%", "10%", "20%"]
         })
 
-        st.image("venmo.jpeg", use_container_width=True)
+        st.image("streamlit/venmo.jpeg", use_container_width=True)
         st.markdown("""
         <div style="text-align: center;">
             <a href="https://venmo.com/code?user_id=1944273914167296153" target="_blank">Venmo Payment Link</a>

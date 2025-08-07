@@ -7,7 +7,6 @@ import altair as alt
 DB_PATH = "cfbpickem.db"
 ADMIN_PASSWORD = st.secrets["admin"]["password"]
 
-
 # Helper
 def get_db_connection():
     return sqlite3.connect(DB_PATH)
@@ -27,7 +26,6 @@ def login():
 
 # App config
 st.set_page_config(page_title="Admin Panel", layout="centered")
-
 st.title("🔧 Admin Panel - College Pick'em")
 
 # Admin login
@@ -137,19 +135,21 @@ with tab3:
             cursor = conn.cursor()
             cursor.execute(
                 "INSERT INTO players (name, email, paid) VALUES (?, ?, ?)",
-                (new_player.strip(), new_email.strip(), int(paid))  # SQLite uses 0/1 for booleans
+                (new_player.strip(), new_email.strip(), int(paid))
             )
             conn.commit()
-            st.success(f"Added new player: {new_player.strip()} (Paid: {True if paid else False})")
+            st.success(f"Added new player: {new_player.strip()} (Paid: {paid})")
 
     delete_player = st.selectbox("Delete Existing Player", list(player_names.keys()))
     if st.button("Delete Player"):
         with get_db_connection() as conn:
             cursor = conn.cursor()
+            cursor.execute("DELETE FROM player_picks WHERE player_id = (SELECT id FROM players WHERE name = ?)", (delete_player,))
             cursor.execute("DELETE FROM players WHERE name = ?", (delete_player,))
             conn.commit()
-            st.warning(f"Deleted player: {delete_player}")
+            st.warning(f"Deleted player: {delete_player} and all associated picks.")
 
+# --- Tab 4: Users ---
 with tab4:
     st.subheader("👥 All Users")
 
@@ -160,16 +160,14 @@ with tab4:
 
     for player_id, name, email, paid in rows:
         cols = st.columns([3, 4, 2, 2])
-
         cols[0].write(name)
         cols[1].write(email)
         is_paid = cols[2].checkbox("Paid", value=bool(paid), key=f"paid_{player_id}")
 
         if is_paid != bool(paid):
-            # Update DB if checkbox toggled
             with get_db_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("UPDATE players SET paid = ? WHERE id = ?", (int(is_paid), player_id))
                 conn.commit()
                 st.success(f"Updated {name}'s paid status to {'✅' if is_paid else '❌'}")
-                st.rerun()  # Refresh to avoid multiple updates
+                st.rerun()
