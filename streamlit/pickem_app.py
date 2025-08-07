@@ -117,6 +117,27 @@ def get_teams_and_records_for(player_name, include_points=False):
                 for name, w, l, t, tier, conf_wins, conf_losses in cursor.fetchall()
             ]
 
+def compute_ranks(data, reverse=False):
+    # Sort data (name, value, ...) by value (index 1)
+    sorted_data = sorted(data, key=lambda x: x[1], reverse=reverse)
+
+    ranked = []
+    last_score = None
+    current_rank = 0
+    num_tied = 0
+
+    for i, entry in enumerate(sorted_data):
+        score = entry[1]
+        if score == last_score:
+            num_tied += 1
+        else:
+            current_rank = current_rank + num_tied + 1
+            num_tied = 0
+            last_score = score
+        ranked.append((current_rank, *entry))
+    return ranked
+
+
 def calculate_rat_king_scores():
     with get_db_connection() as conn:
         cursor = conn.cursor()
@@ -180,11 +201,12 @@ if page == "Standings":
         all_player_names = [name for name, _ in player_points]
         selected = st.selectbox("Select Player (or view all)", ["All"] + all_player_names)
 
-        for idx, (name, pts) in enumerate(player_points, start=1):
+        ranked_players = compute_ranks(player_points, reverse=False)
+
+        for rank, name, pts in ranked_players:
             if selected != "All" and selected != name:
                 continue
-
-            with st.expander(f"#{idx} {name} - {pts} pts"):
+            with st.expander(f"#{rank} {name} - {pts} pts"):
                 teams = get_teams_and_records_for(name, include_points=True)
                 for team, record, tier, team_points in teams:
                     player_tier = (
@@ -205,11 +227,13 @@ if page == "Standings":
         all_names = [name for name, _, _ in scores]
         selected = st.selectbox("Select Player (or view all)", ["All"] + all_names, key="rat_king")
 
-        for idx, (name, score, details) in enumerate(scores, start=1):
+        ranked_scores = compute_ranks(scores, reverse=True)
+
+        for rank, name, score, details in ranked_scores:
             if selected != "All" and selected != name:
                 continue
 
-            with st.expander(f"#{idx} {name} — Avg Win Rate: {score:.3%}"):
+            with st.expander(f"#{rank} {name} — Avg Win Rate: {score:.3%}"):
                 for team_name, wins, losses in details:
                     total = wins + losses
                     rate = wins / total if total else 0
@@ -223,13 +247,16 @@ if page == "Standings":
         all_names = [name for name, _, _ in scores]
         selected = st.selectbox("Select Player (or view all)", ["All"] + all_names, key="conf_champ")
 
-        for idx, (name, margin, data) in enumerate(scores, start=1):
+        ranked_champs = compute_ranks(scores, reverse=True)
+
+        for rank, name, margin, data in ranked_champs:
             if selected != "All" and selected != name:
                 continue
 
-            with st.expander(f"#{idx} {name} — Conf Margin: {margin}"):
+            with st.expander(f"#{rank} {name} — Conf Margin: {margin}"):
                 for team_name, conf_wins, conf_losses in data:
                     st.write(f"{team_name}: {conf_wins}-{conf_losses}")
+
 
 elif page == "Game Stats":
     st.header("🏈 Team Overview")

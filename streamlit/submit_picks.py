@@ -21,7 +21,9 @@ if "show_form" not in st.session_state:
 with main_tab:
     if not st.session_state.show_form:
         st.markdown("""
-    - Each player selects a group of teams before the season starts.  
+    - Each player selects a group of teams before the season starts. **You only pick once for the whole season.**
+    - The games only last for the regular season.
+    - If you want to change your picks before the season starts, just resubmit using the same email. It will overwrite your previous picks.
     - You earn points whenever one of your selected teams loses a game.  
     - The number of points earned per loss is based on the team's tier:  
       - Tier 1 = 6pts   - Preseason rank 1-10
@@ -52,7 +54,9 @@ with conf_tab:
 with payout_tab:
     st.header("Buy-In & Payouts")
     st.markdown("""
-    **Buy-in is $25. Venmo Tanner with your DISPLAY NAME in the caption!!!**
+    **Buy-in is $35. Venmo Tanner with your DISPLAY NAME in the caption!!!**
+    - For the tiebreaker, we will just go to total wins. If two players have the **same exact selections**, they will split the pot.
+    - Failure to submit payment before the season starts will result in removal from the pickem.
     - Pot Split:
     """)
 
