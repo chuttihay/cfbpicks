@@ -4,7 +4,7 @@ from PIL import Image
 import pandas as pd
 import altair as alt
 
-DB_PATH = "../cfbpickem.db"
+DB_PATH = "cfbpickem.db"
 ADMIN_PASSWORD = st.secrets["admin"]["password"]
 
 

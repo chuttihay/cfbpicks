@@ -4,7 +4,8 @@ from PIL import Image
 import pandas as pd
 import altair as alt
 
-DB_PATH = "../cfbpickem.db"
+
+DB_PATH = "cfbpickem.db"
 
 # Page config
 st.set_page_config(page_title="College Pick'em", layout="centered")
@@ -28,7 +29,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Header
-st.image(Image.open("white.png"), use_container_width=True)
+st.image(Image.open("streamlit/white.png"), use_container_width=True)
 st.title("Presented by the Shelby Fellas")
 
 # Sidebar nav menu

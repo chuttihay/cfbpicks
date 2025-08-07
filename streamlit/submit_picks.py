@@ -3,11 +3,11 @@ import sqlite3
 from PIL import Image
 
 # Database path
-DB_PATH = "../cfbpickem.db"
+DB_PATH = "cfbpickem.db"
 
 # Page setup
 st.set_page_config(page_title="Submit Your Picks", layout="centered")
-st.image(Image.open("white.png"), use_container_width=True)
+st.image(Image.open("streamlit/white.png"), use_container_width=True)
 st.title("🏈 College Football Pick'em Submission Form")
 st.header("Rules")
 st.subheader("Cycle Through Tabs to Check Side-Pot Games & Buy-In/Payouts")
@@ -61,7 +61,7 @@ with payout_tab:
         "Prize Split": ["70%", "10%", "20%"]
     })
 
-    st.image("venmo.jpeg", use_container_width=True)
+    st.image("streamlit/venmo.jpeg", use_container_width=True)
     st.markdown("""
     <div style="text-align: center;">
         <a href="https://venmo.com/code?user_id=1944273914167296153" target="_blank">Venmo Payment Link</a>
