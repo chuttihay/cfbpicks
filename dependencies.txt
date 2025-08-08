@@ -1,6 +1,0 @@
-1. Create venv inside repo
-2. Ask for Scores API Key and set it up in activate  
-3. Use new python version
-4. pip install requests
-5. pip install reflex
-
